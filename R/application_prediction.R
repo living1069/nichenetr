@@ -521,17 +521,36 @@ convert_single_cell_expression_to_settings = function(cell_id, expression_matrix
 #'
 predict_single_cell_ligand_activities = function(cell_ids, expression_scaled,ligand_target_matrix, potential_ligands, single = TRUE,...){
   settings_single_cell_ligand_pred = cell_ids %>% lapply(convert_single_cell_expression_to_settings, expression_scaled, "", potential_ligands)
-  if (single == TRUE){
-    settings_ligand_prediction = settings_single_cell_ligand_pred %>% convert_settings_ligand_prediction(all_ligands = potential_ligands, validation = FALSE, single = TRUE)
+  #if (single == TRUE){
+   # settings_ligand_prediction = settings_single_cell_ligand_pred %>% convert_settings_ligand_prediction(all_ligands = potential_ligands, validation = FALSE, single = TRUE)
 
-    ligand_importances = settings_ligand_prediction %>% lapply(get_single_ligand_importances,ligand_target_matrix = ligand_target_matrix, known = FALSE) %>% bind_rows() %>% mutate(setting = gsub("^_","",setting))
+    #ligand_importances = settings_ligand_prediction %>% lapply(get_single_ligand_importances,ligand_target_matrix = ligand_target_matrix, known = FALSE) %>% bind_rows() %>% mutate(setting = gsub("^_","",setting))
 
-  } else {
-    settings_ligand_prediction = settings_single_cell_ligand_pred %>% convert_settings_ligand_prediction(all_ligands = potential_ligands, validation = FALSE, single = FALSE)
+  #} else {
+   # settings_ligand_prediction = settings_single_cell_ligand_pred %>% convert_settings_ligand_prediction(all_ligands = potential_ligands, validation = FALSE, single = FALSE)
 
-    ligand_importances = settings_ligand_prediction %>% lapply(get_multi_ligand_importances,ligand_target_matrix = ligand_target_matrix, known = FALSE, ...) %>% bind_rows() %>% mutate(setting = gsub("^_","",setting))
+    #ligand_importances = settings_ligand_prediction %>% lapply(get_multi_ligand_importances,ligand_target_matrix = ligand_target_matrix, known = FALSE, ...) %>% bind_rows() %>% mutate(setting = gsub("^_","",setting))
 
-  }
+  #}
+    if (single == TRUE) {
+        settings_ligand_prediction = settings_single_cell_ligand_pred %>%
+            convert_settings_ligand_prediction(all_ligands = potential_ligands,
+                validation = FALSE, single = TRUE)
+        ligand_importances = settings_ligand_prediction %>% pbmcapply::pbmclapply(get_single_ligand_importances,
+            ligand_target_matrix = ligand_target_matrix, known = FALSE,
+            mc.cores = options("mc.cores")[[1]]) %>% bind_rows() %>%
+            mutate(setting = gsub("^_", "", setting))
+    }
+    else {
+        settings_ligand_prediction = settings_single_cell_ligand_pred %>%
+            convert_settings_ligand_prediction(all_ligands = potential_ligands,
+                validation = FALSE, single = FALSE)
+        ligand_importances = settings_ligand_prediction %>% pbmcapply::pbmclapply(get_multi_ligand_importances,
+            ligand_target_matrix = ligand_target_matrix, known = FALSE,
+            mc.cores = options("mc.cores")[[1]], ...) %>% bind_rows() %>%
+            mutate(setting = gsub("^_", "", setting))
+    }
+
   return(ligand_importances %>% select(setting,test_ligand,auroc,aupr,pearson))
 }
 #' @title Normalize single-cell ligand activities
